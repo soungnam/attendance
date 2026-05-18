@@ -20,10 +20,9 @@
   .btn-row { display: flex; gap: 8px; margin-top: 12px; }
   .btn { flex: 1; padding: 12px; border-radius: 8px; font-size: 15px; font-weight: 500; cursor: pointer; border: 1px solid #ddd; background: #fff; color: #111; }
   .btn-in { background: #111; color: #fff; border-color: #111; }
-  .btn-in:hover { background: #333; }
   .btn:hover:not(:disabled) { background: #f5f5f5; }
   .btn-in:hover:not(:disabled) { background: #333; }
-  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; pointer-events: none; }
   .result-card { background: #fff; border-radius: 16px; border: 1px solid #e8e8e8; padding: 28px 20px; text-align: center; margin-bottom: 16px; }
   .avatar { width: 72px; height: 72px; border-radius: 50%; background: #e8f0fe; color: #1a56db; display: flex; align-items: center; justify-content: center; font-size: 24px; font-weight: 600; margin: 0 auto 14px; overflow: hidden; }
   .avatar img { width: 100%; height: 100%; object-fit: cover; }
@@ -116,7 +115,7 @@
       <button class="btn btn-in" id="btnIn" onclick="doRecord('출근')" disabled>출근</button>
       <button class="btn" id="btnOut" onclick="doRecord('퇴근')" disabled>퇴근</button>
     </div>
-    <div class="photo-required">📸 사진을 먼저 찍어야 출퇴근 기록이 가능합니다</div>
+    <div class="photo-required" id="photoMsg">📸 사진을 먼저 찍어야 출퇴근 기록이 가능합니다</div>
   </div>
   <div id="resultView" style="display:none">
     <div class="result-card">
@@ -169,6 +168,17 @@ let locationStr = '';
 let camStream = null;
 let camOn = false;
 
+function lockBtns() {
+  document.getElementById('btnIn').disabled = true;
+  document.getElementById('btnOut').disabled = true;
+  document.getElementById('photoMsg').style.display = 'block';
+}
+function unlockBtns() {
+  document.getElementById('btnIn').disabled = false;
+  document.getElementById('btnOut').disabled = false;
+  document.getElementById('photoMsg').style.display = 'none';
+}
+
 function today() { return new Date().toLocaleDateString('ko-KR'); }
 function nowTime() { return new Date().toLocaleTimeString('ko-KR', {hour:'2-digit', minute:'2-digit', second:'2-digit', hour12:false}); }
 function nowFull() { return new Date().toLocaleString('ko-KR', {year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit', hour12:false}); }
@@ -197,7 +207,10 @@ async function toggleCamera() {
     document.getElementById('camBtn').textContent = '❌ 카메라 끄기';
     document.getElementById('shootBtn').style.display = 'block';
     camOn = true;
-  } catch(e) { alert('카메라 권한이 필요합니다.'); }
+  } catch(e) {
+    alert('카메라 권한이 필요합니다. 브라우저 설정에서 카메라를 허용해주세요.');
+    lockBtns();
+  }
 }
 
 function stopCamera() {
@@ -221,9 +234,7 @@ function takePhoto() {
   document.getElementById('camBtn').style.display = 'none';
   document.getElementById('shootBtn').style.display = 'none';
   document.getElementById('retakeBtn').style.display = 'block';
-  document.getElementById('btnIn').disabled = false;
-  document.getElementById('btnOut').disabled = false;
-  document.querySelector('.photo-required').style.display = 'none';
+  unlockBtns();
 }
 
 function retakePhoto() {
@@ -232,9 +243,7 @@ function retakePhoto() {
   document.getElementById('retakeBtn').style.display = 'none';
   document.getElementById('camBtn').style.display = 'block';
   document.getElementById('camBtn').textContent = '📷 카메라 켜기';
-  document.getElementById('btnIn').disabled = true;
-  document.getElementById('btnOut').disabled = true;
-  document.querySelector('.photo-required').style.display = 'block';
+  lockBtns();
 }
 
 function showTab(id) {
@@ -273,7 +282,7 @@ function closePwModal() { document.getElementById('pwModal').style.display = 'no
 function doRecord(type) {
   const name = document.getElementById('nameIn').value.trim();
   if (!name) { alert('이름을 입력하세요'); return; }
-  if (!photoBase64) { alert('사진을 먼저 찍어주세요'); return; }
+  if (!photoBase64) { alert('사진을 먼저 찍어주세요'); lockBtns(); return; }
   document.getElementById('btnIn').disabled = true;
   document.getElementById('btnOut').disabled = true;
   document.getElementById('sendingOverlay').style.display = 'flex';
@@ -286,10 +295,9 @@ function doRecord(type) {
     document.getElementById('sendingOverlay').style.display = 'none';
     showResult(name, type, rec);
   }).catch(() => {
-    document.getElementById('btnIn').disabled = false;
-    document.getElementById('btnOut').disabled = false;
     document.getElementById('sendingOverlay').style.display = 'none';
     alert('저장 실패. 인터넷 연결을 확인하세요.');
+    unlockBtns();
   });
 }
 
@@ -297,11 +305,9 @@ function showResult(name, type, rec) {
   document.getElementById('formView').style.display = 'none';
   document.getElementById('resultView').style.display = 'block';
   const avatarEl = document.getElementById('resAvatar');
-  if (photoBase64) {
-    avatarEl.innerHTML = '<img src="data:image/jpeg;base64,' + photoBase64 + '" alt="사진"/>';
-  } else {
-    avatarEl.textContent = initials(name);
-  }
+  avatarEl.innerHTML = photoBase64
+    ? '<img src="data:image/jpeg;base64,' + photoBase64 + '" alt="사진"/>'
+    : initials(name);
   document.getElementById('resName').textContent = name + ' 님';
   document.getElementById('resBadge').innerHTML = type === '출근'
     ? '<span class="badge badge-in">✓ 출근 완료</span>'
@@ -314,14 +320,12 @@ function resetForm() {
   document.getElementById('formView').style.display = 'block';
   document.getElementById('resultView').style.display = 'none';
   document.getElementById('nameIn').value = '';
-  document.getElementById('btnIn').disabled = true;
-  document.getElementById('btnOut').disabled = true;
   photoBase64 = '';
   document.getElementById('photoPreview').style.display = 'none';
   document.getElementById('retakeBtn').style.display = 'none';
   document.getElementById('camBtn').style.display = 'block';
   document.getElementById('camBtn').textContent = '📷 카메라 켜기';
-  document.querySelector('.photo-required').style.display = 'block';
+  lockBtns();
   document.getElementById('nameIn').focus();
   getLocation();
 }
@@ -362,6 +366,7 @@ function downloadQR() {
 }
 
 (function init() {
+  lockBtns();
   const url = location.href.split('?')[0].split('#')[0];
   new QRCode(document.getElementById('qrcode'), { text: url, width: 220, height: 220, colorDark: '#000', colorLight: '#fff' });
   getLocation();
