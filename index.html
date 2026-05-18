@@ -301,4 +301,60 @@ function showResult(name, type, rec) {
 }
 
 function resetForm() {
-  document.getElementById('formView').sty
+  document.getElementById('formView').style.display = 'block';
+  document.getElementById('resultView').style.display = 'none';
+  document.getElementById('nameIn').value = '';
+  document.getElementById('btnIn').disabled = false;
+  document.getElementById('btnOut').disabled = false;
+  photoBase64 = '';
+  document.getElementById('photoPreview').style.display = 'none';
+  document.getElementById('retakeBtn').style.display = 'none';
+  document.getElementById('camBtn').style.display = 'block';
+  document.getElementById('camBtn').textContent = '📷 카메라 켜기';
+  document.getElementById('nameIn').focus();
+  getLocation();
+}
+
+function renderAdmin() {
+  document.getElementById('allRecs').innerHTML = '<div class="loading">불러오는 중...</div>';
+  fetch(GAS_URL + '?action=get')
+    .then(r => r.json())
+    .then(data => {
+      const t = today();
+      document.getElementById('sTotal').textContent = data.length;
+      document.getElementById('sToday').textContent = data.filter(r => r[2] === t).length;
+      document.getElementById('sNames').textContent = new Set(data.map(r => r[0])).size;
+      if (!data.length) { document.getElementById('allRecs').innerHTML = '<div class="empty">기록이 없습니다</div>'; return; }
+      document.getElementById('allRecs').innerHTML = data.slice().reverse().map(r => `
+        <div class="rec-row">
+          <div class="rec-avatar">${r[5] ? '<img src="' + r[5] + '" alt="사진"/>' : initials(r[0])}</div>
+          <div class="rec-info">
+            <div class="rec-name">${r[0]}</div>
+            <div class="rec-date">${r[2]} ${r[3]}</div>
+            ${r[4] ? '<div class="rec-loc">📍 <a href="https://maps.google.com/?q=' + r[4] + '" target="_blank" style="color:#1a56db;font-size:11px">지도 보기</a></div>' : ''}
+          </div>
+          <span class="badge ${r[1]==='출근'?'badge-in':'badge-out'}" style="font-size:12px">${r[1]}</span>
+        </div>`).join('');
+    })
+    .catch(() => {
+      document.getElementById('allRecs').innerHTML = '<div class="empty">불러오기 실패. 새로고침을 눌러주세요.</div>';
+    });
+}
+
+function downloadQR() {
+  const canvas = document.querySelector('#qrcode canvas');
+  if (!canvas) return;
+  const a = document.createElement('a');
+  a.download = '출퇴근_QR.png';
+  a.href = canvas.toDataURL();
+  a.click();
+}
+
+(function init() {
+  const url = location.href.split('?')[0].split('#')[0];
+  new QRCode(document.getElementById('qrcode'), { text: url, width: 220, height: 220, colorDark: '#000', colorLight: '#fff' });
+  getLocation();
+})();
+</script>
+</body>
+</html>
