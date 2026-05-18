@@ -21,8 +21,9 @@
   .btn { flex: 1; padding: 12px; border-radius: 8px; font-size: 15px; font-weight: 500; cursor: pointer; border: 1px solid #ddd; background: #fff; color: #111; }
   .btn-in { background: #111; color: #fff; border-color: #111; }
   .btn-in:hover { background: #333; }
-  .btn:hover { background: #f5f5f5; }
-  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn:hover:not(:disabled) { background: #f5f5f5; }
+  .btn-in:hover:not(:disabled) { background: #333; }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
   .result-card { background: #fff; border-radius: 16px; border: 1px solid #e8e8e8; padding: 28px 20px; text-align: center; margin-bottom: 16px; }
   .avatar { width: 72px; height: 72px; border-radius: 50%; background: #e8f0fe; color: #1a56db; display: flex; align-items: center; justify-content: center; font-size: 24px; font-weight: 600; margin: 0 auto 14px; overflow: hidden; }
   .avatar img { width: 100%; height: 100%; object-fit: cover; }
@@ -62,6 +63,7 @@
   .cam-btn { width: 100%; padding: 11px; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; border: 1px solid #ddd; background: #f8f8f8; color: #333; margin-bottom: 8px; }
   .cam-btn:hover { background: #eee; }
   .loc-info { font-size: 12px; color: #888; padding: 6px 10px; background: #f8f8f8; border-radius: 6px; margin-bottom: 8px; display: none; }
+  .photo-required { font-size: 12px; color: #c5221f; padding: 6px 10px; background: #fce8e6; border-radius: 6px; margin-top: 8px; text-align: center; }
   .sending-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 200; align-items: center; justify-content: center; flex-direction: column; gap: 12px; }
   .sending-overlay .msg { color: #fff; font-size: 16px; font-weight: 500; }
   .spinner { width: 36px; height: 36px; border: 3px solid rgba(255,255,255,0.3); border-top-color: #fff; border-radius: 50%; animation: spin 0.8s linear infinite; }
@@ -97,9 +99,9 @@
 <div id="checkin" class="sec active">
   <div id="formView" class="card">
     <label>이름을 입력하세요</label>
-    <input type="text" id="nameIn" placeholder="예: 홍길동" autofocus onkeydown="if(event.key==='Enter') doRecord('출근')"/>
+    <input type="text" id="nameIn" placeholder="예: 홍길동" autofocus/>
     <div style="margin-top:14px">
-      <label>사진 촬영 (선택)</label>
+      <label>사진 촬영 <span style="color:#c5221f">*필수</span></label>
       <div class="cam-area" id="camArea">
         <video id="camVideo" autoplay playsinline muted></video>
       </div>
@@ -111,9 +113,10 @@
     </div>
     <div class="loc-info" id="locInfo">📍 위치 확인 중...</div>
     <div class="btn-row">
-      <button class="btn btn-in" id="btnIn" onclick="doRecord('출근')">출근</button>
-      <button class="btn" id="btnOut" onclick="doRecord('퇴근')">퇴근</button>
+      <button class="btn btn-in" id="btnIn" onclick="doRecord('출근')" disabled>출근</button>
+      <button class="btn" id="btnOut" onclick="doRecord('퇴근')" disabled>퇴근</button>
     </div>
+    <div class="photo-required">📸 사진을 먼저 찍어야 출퇴근 기록이 가능합니다</div>
   </div>
   <div id="resultView" style="display:none">
     <div class="result-card">
@@ -218,6 +221,9 @@ function takePhoto() {
   document.getElementById('camBtn').style.display = 'none';
   document.getElementById('shootBtn').style.display = 'none';
   document.getElementById('retakeBtn').style.display = 'block';
+  document.getElementById('btnIn').disabled = false;
+  document.getElementById('btnOut').disabled = false;
+  document.querySelector('.photo-required').style.display = 'none';
 }
 
 function retakePhoto() {
@@ -226,6 +232,9 @@ function retakePhoto() {
   document.getElementById('retakeBtn').style.display = 'none';
   document.getElementById('camBtn').style.display = 'block';
   document.getElementById('camBtn').textContent = '📷 카메라 켜기';
+  document.getElementById('btnIn').disabled = true;
+  document.getElementById('btnOut').disabled = true;
+  document.querySelector('.photo-required').style.display = 'block';
 }
 
 function showTab(id) {
@@ -264,6 +273,7 @@ function closePwModal() { document.getElementById('pwModal').style.display = 'no
 function doRecord(type) {
   const name = document.getElementById('nameIn').value.trim();
   if (!name) { alert('이름을 입력하세요'); return; }
+  if (!photoBase64) { alert('사진을 먼저 찍어주세요'); return; }
   document.getElementById('btnIn').disabled = true;
   document.getElementById('btnOut').disabled = true;
   document.getElementById('sendingOverlay').style.display = 'flex';
@@ -304,13 +314,14 @@ function resetForm() {
   document.getElementById('formView').style.display = 'block';
   document.getElementById('resultView').style.display = 'none';
   document.getElementById('nameIn').value = '';
-  document.getElementById('btnIn').disabled = false;
-  document.getElementById('btnOut').disabled = false;
+  document.getElementById('btnIn').disabled = true;
+  document.getElementById('btnOut').disabled = true;
   photoBase64 = '';
   document.getElementById('photoPreview').style.display = 'none';
   document.getElementById('retakeBtn').style.display = 'none';
   document.getElementById('camBtn').style.display = 'block';
   document.getElementById('camBtn').textContent = '📷 카메라 켜기';
+  document.querySelector('.photo-required').style.display = 'block';
   document.getElementById('nameIn').focus();
   getLocation();
 }
